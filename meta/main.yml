@@ -1,0 +1,23 @@
+galaxy_info:
+  role_name: wisecorp.rancher
+  author: Salem Chniguir
+  description: This role deploys Rancher in a kubernetes cluster using helm
+  company: Wise Corp
+
+  license: license ( MIT, BSD)
+
+  min_ansible_version: 2.4
+  platforms:
+  - name: Ubuntu
+    versions:
+      - xenial
+      - bionic
+      - focal
+
+  galaxy_tags:
+    - rancher
+    - helm-charts
+    - kubernetes
+
+dependencies: 
+  - gantsign.helm
