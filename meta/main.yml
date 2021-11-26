@@ -1,5 +1,5 @@
 galaxy_info:
-  role_name: wisecorp-rancher
+  role_name: rancher
   author: Salem Chniguir
   description: This role deploys Rancher in a kubernetes cluster using helm
   company: Wise Corp
