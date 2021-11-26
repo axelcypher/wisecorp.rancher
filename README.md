@@ -1,22 +1,58 @@
-Role Name
+Ansible Role: Rancher
 =========
 
-A brief description of the role goes here.
-
+Installs [Ranhcer](https://rancher.com/) using [helm charts](https://rancher.com/docs/rancher/v2.5/en/installation/install-rancher-on-k8s/).
 Requirements
 ------------
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+None.
 
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+Available variables are listed below, along with default values (see `defaults/main.yml`):
+
+    cert_manager_version: '1.0.4'
+
+Specify the [certmanager](https://rancher.com/docs/rancher/v2.5/en/installation/install-rancher-on-k8s/#4-install-cert-manager) version required by Rancher.
+
+    k3s_kube_config_path: "~{{ ansible_user }}/.kube/config"
+Is the path to kubeConfig file to access the kubernetes Cluster where Rancher and its dependencies will be installed.
+
+    rancher_version: '2.5.8'
+    rancher_dns_name: rancher.company.com
+    rancher_options:
+      letsencrypt_email: technique@wisecorp.tn
+      ingress_tls_source: letsEncrypt # possible values: rancher, letsEncrypt, secret
+      noProxy: 127.0.0.0/8\,.svc\,.cluster.local # possible values: external, ingress
+      replicas: 2
+      tls: ingress # possible values: external, ingress
+
+Define Rancher installation version and [options](https://rancher.com/docs/rancher/v2.5/en/installation/install-rancher-on-k8s/#5-install-rancher-with-helm-and-your-chosen-certificate-option).
 
 Dependencies
 ------------
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+- [gantsign.helm](https://github.com/gantsign/ansible_role_helm)
+
+variables that can be overwritten are 
+
+    # Helm version number
+    helm_version: '3.6.0'
+
+    # The CPU architecture of the Helm executable to install
+    helm_architecture: 'amd64'
+
+    # Mirror to download Helm from
+    helm_mirror: 'https://get.helm.sh'
+
+    # Dir where Helm should be installed
+    helm_install_dir: '/usr/local/share/helm'
+
+    # Directory to store files downloaded for Helm
+    helm_download_dir: "{{ x_ansible_download_dir | default(ansible_env.HOME + '/.ansible/tmp/downloads') }}"
+
+
 
 Example Playbook
 ----------------
@@ -24,15 +60,30 @@ Example Playbook
 Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
 
     - hosts: servers
+      vars_files:
+        - vars/main.yml
       roles:
-         - { role: username.rolename, x: 42 }
+        - role: wisecorp.rancher
+
+Inside vars/main.yml:
+
+    cert_manager_version: '1.0.4'
+    rancher_version: '2.5.8'
+    rancher_dns_name: rancher.company.com
+    k3s_kube_config_path: "~{{ ansible_user }}/.kube/config"
+    rancher_options:
+      letsencrypt_email: technique@wisecorp.tn
+      ingress_tls_source: letsEncrypt # possible values: rancher, letsEncrypt, secret
+      noProxy: 127.0.0.0/8\,.svc\,.cluster.local # possible values: external, ingress
+      replicas: 2
+      tls: ingress # possible values: external, ingress
 
 License
 -------
 
-BSD
+BSD/MIT
 
 Author Information
 ------------------
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+Author: Salem Chniguir <salem.chniguir@wisecorp.tn>
