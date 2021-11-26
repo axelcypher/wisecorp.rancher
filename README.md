@@ -63,7 +63,7 @@ Including an example of how to use your role (for instance, with variables passe
       vars_files:
         - vars/main.yml
       roles:
-        - role: wisecorp.rancher
+        - role: slchniguir.rancher
 
 Inside vars/main.yml:
 
