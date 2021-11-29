@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: {{ rancher_options.letsencrypt_email }}
+    privateKeySecretRef:
+      name: prod-issuer-account-key
+    server: https://acme-v02.api.letsencrypt.org/directory
+    http01: {}
+    solvers:
+      - http01:
+          ingress:
+            class: "{{ rancher_options.letsEncrypt_ingress_class }}" 
+        selector: {}

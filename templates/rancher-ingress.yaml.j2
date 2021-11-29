@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: "{{ rancher_options.letsEncrypt_ingress_class }}"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    meta.helm.sh/release-namespace: cattle-system
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+  labels:
+    app: rancher
+  name: rancher
+  namespace: cattle-system
+spec:
+  rules:
+  - host: {{ rancher_dns_name }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: rancher
+            port:
+              number: 80
+        pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - {{ rancher_dns_name }}
+    secretName: tls-rancher-ingress

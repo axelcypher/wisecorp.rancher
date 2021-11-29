@@ -7,7 +7,22 @@
 - name: debug service dns name
   debug:
     var: rancher_dns_name
-    
+
+- name: install pip3
+  apt: 
+    update_cache: yes
+    name: python3-pip 
+    state: present 
+
+- name: Install python packages
+  pip:
+    name: 
+    - openshift
+    - pyyaml
+    - kubernetes
+    - kubernetes-validate
+    executable: pip3
+
 - name: Add jetstack chart repo
   community.kubernetes.helm_repository:
     repo_state: present
@@ -30,29 +45,144 @@
       installCRDs: true
 
 
+- name: check if cert-manager deployments are available
+  community.kubernetes.k8s_info:
+    kubeconfig: "{{ k3s_kube_config_path }}"
+    namespace: cert-manager
+    validate_certs: no
+    kind: Deployment
+    label_selectors: 
+      - app = {{item}}
+  with_items:
+    - cert-manager
+    - webhook
+    - cainjector
+  register: output_info
+  until: output_info.resources | json_query('[*].status.conditions[?reason==`NewReplicaSetAvailable`][].status') | select ('match','True') | list | length == 1
+  delay: 10
+  retries: 30
+
+
 - name: Add rancher-stable chart repo
   community.kubernetes.helm_repository:
     name: rancher-stable
     repo_url: "https://releases.rancher.com/server-charts/stable"
 
 
-- name: Deploy version {{ rancher_version }} of rancher chart inside cattle-system namespace with values DNS {{ rancher_dns_name }}
-  community.kubernetes.helm:
-    update_repo_cache: yes
-    wait: yes
-    wait_timeout: "30m"
-    create_namespace: yes
-    release_state: present
-    kubeconfig: "{{k3s_kube_config_path }}"
-    name: rancher
-    chart_ref: rancher-stable/rancher
-    release_namespace: cattle-system
-    chart_version: "{{ rancher_version }}"
-    release_values:
-      replicas:  "{{ rancher_options.replicas }}"
-      letsEncrypt.email: "{{ letsencrypt_email }}"
-      tls: "{{ rancher_options.tls }}" 
-      ingress.tls.source: "{{ rancher_options.ingress_tls_source }}" 
-      hostname: "{{ rancher_dns_name }}"
-      certmanager.version: "{{ cert_manager_version }}"
-      noProxy: "{{ rancher_options.noProxy }}"
+- name: Block to install rancher with Rancher self certificates
+  block:
+  - name: Deploy version {{ rancher_version }} of rancher chart inside cattle-system namespace with values DNS {{ rancher_dns_name }}, tls source {{ rancher_options.ingress_tls_source}}
+    community.kubernetes.helm:
+      update_repo_cache: yes
+      wait: yes
+      wait_timeout: "30m"
+      create_namespace: yes
+      release_state: present
+      kubeconfig: "{{k3s_kube_config_path }}"
+      name: rancher
+      chart_ref: rancher-stable/rancher
+      release_namespace: cattle-system
+      chart_version: "{{ rancher_version }}"
+      release_values:
+        replicas:  "{{ rancher_options.replicas }}"
+        tls: "{{ rancher_options.tls }}" 
+        ingress.tls.source: "{{ rancher_options.ingress_tls_source }}" 
+        hostname: "{{ rancher_dns_name }}"
+        certmanager.version: "{{ cert_manager_version }}"
+        noProxy: "{{ rancher_options.noProxy }}"
+  when: 
+    - rancher_options.ingress_tls_source == "rancher"
+
+
+- name: Block to install rancher with LetsEncrypt support
+  block:
+  - name: Copy coreDNs-configmap.yaml template
+    template:
+      src: "coreDNs-configmap.yaml.j2"
+      dest: "/root/coreDNs-configmap.yaml"
+      owner: root
+      group: root
+      mode: 0644
+
+  # Apply manifest
+  - name: Apply coreDNs-configmap manifest to the cluster.
+    community.kubernetes.k8s:
+      kubeconfig: "{{ k3s_kube_config_path }}"
+      state: present
+      src: /root/coreDNs-configmap.yaml
+      force: yes
+      validate_certs: no
+      namespace: kube-system
+      validate:
+        fail_on_error: no
+        strict: no
+        
+  - name: Copy cluster-issuer-prod.yaml template
+    template:
+      src: "cluster-issuer-prod.yaml.j2"
+      dest: "/root/cluster-issuer-prod.yaml"
+      owner: root
+      group: root
+      mode: 0644
+
+  # Apply manifest
+  - name: Apply cluster-issuer-prod manifest to the cluster.
+    community.kubernetes.k8s:
+      kubeconfig: "{{ k3s_kube_config_path }}"
+      state: present
+      src: /root/cluster-issuer-prod.yaml
+      validate_certs: no
+      namespace: cert-manager
+      validate:
+        fail_on_error: no
+        strict: no
+
+  - name: debug rancher options
+    debug:
+      var: rancher_options
+        
+  - name: Deploy version {{ rancher_version }} of rancher chart inside cattle-system namespace with values DNS {{ rancher_dns_name }}, tls source {{ rancher_options.ingress_tls_source}}
+    community.kubernetes.helm:
+      update_repo_cache: yes
+      wait: yes
+      wait_timeout: "30m"
+      create_namespace: yes
+      release_state: present
+      kubeconfig: "{{k3s_kube_config_path }}"
+      name: rancher
+      chart_ref: rancher-stable/rancher
+      release_namespace: cattle-system
+      chart_version: "{{ rancher_version }}"
+      release_values:
+        replicas:  "{{ rancher_options.replicas }}"
+        letsEncrypt.email: "{{ rancher_options.letsencrypt_email }}"
+        letsEncrypt.ingress.class: "{{ rancher_options.letsEncrypt_ingress_class }}"
+        tls: "{{ rancher_options.tls }}" 
+        ingress.tls.source: "{{ rancher_options.ingress_tls_source }}" 
+        hostname: "{{ rancher_dns_name }}"
+        certmanager.version: "{{ cert_manager_version }}"
+        noProxy: "{{ rancher_options.noProxy }}"
+      
+  - name: Copy rancher-ingress.yaml template
+    template:
+      src: "rancher-ingress.yaml.j2"
+      dest: "/root/rancher-ingress.yaml"
+      owner: root
+      group: root
+      mode: 0644
+
+  # Apply manifest
+  - name: Apply rancher-ingress manifest to the cluster.
+    community.kubernetes.k8s:
+      kubeconfig: "{{ k3s_kube_config_path }}"
+      force: yes
+      state: present
+      src: /root/rancher-ingress.yaml
+      validate_certs: no
+      namespace: cattle-system
+      validate:
+        fail_on_error: no
+        strict: no
+
+  when: 
+  - rancher_options.ingress_tls_source == "letsEncrypt"
