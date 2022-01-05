@@ -124,13 +124,33 @@
       owner: root
       group: root
       mode: 0644
-
+        
+  - name: Copy cluster-issuer-staging.yaml template
+    template:
+      src: "cluster-issuer-staging.yaml.j2"
+      dest: "/root/cluster-issuer-staging.yaml"
+      owner: root
+      group: root
+      mode: 0644
+        
   # Apply manifest
   - name: Apply cluster-issuer-prod manifest to the cluster.
     community.kubernetes.k8s:
       kubeconfig: "{{ k3s_kube_config_path }}"
       state: present
       src: /root/cluster-issuer-prod.yaml
+      validate_certs: no
+      namespace: cert-manager
+      validate:
+        fail_on_error: no
+        strict: no
+
+  # Apply manifest
+  - name: Apply cluster-issuer-staging manifest to the cluster.
+    community.kubernetes.k8s:
+      kubeconfig: "{{ k3s_kube_config_path }}"
+      state: present
+      src: /root/cluster-issuer-staging.yaml
       validate_certs: no
       namespace: cert-manager
       validate:
