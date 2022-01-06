@@ -5,6 +5,7 @@ rancher_version: '2.5.8'
 rancher_dns_name: rancher.company.com
 k3s_kube_config_path: "~{{ ansible_user }}/.kube/config"
 rancher_options:
+  letsencrypt_issuer: letsencrypt-prod # values: letsencrypt-prod, letsencrypt-staging
   letsencrypt_email: technique@wisecorp.tn
   letsencrypt_private_ip: "master_private_ip"
   ingress_tls_source: rancher # possible values: rancher, letsEncrypt, secret

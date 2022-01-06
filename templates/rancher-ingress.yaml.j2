@@ -3,7 +3,7 @@ kind: Ingress
 metadata:
   annotations:
     kubernetes.io/ingress.class: "{{ rancher_options.letsEncrypt_ingress_class }}"
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: "{{ rancher_options.letsencrypt_issuer }}"
     meta.helm.sh/release-namespace: cattle-system
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
@@ -26,4 +26,4 @@ spec:
   tls:
   - hosts:
     - {{ rancher_dns_name }}
-    secretName: tls-rancher-ingress
+    secretName: tls-{{ rancher_dns_name }}
