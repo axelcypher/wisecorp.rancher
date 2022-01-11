@@ -1,6 +1,5 @@
 ---
 # defaults file for wisecorp.rancher
-cert_manager_version: '1.0.4'
 rancher_version: '2.5.8'
 rancher_dns_name: rancher.company.com
 k3s_kube_config_path: "~{{ ansible_user }}/.kube/config"

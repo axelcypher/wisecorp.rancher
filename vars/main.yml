@@ -1,2 +1,3 @@
 ---
 # vars file for wisecorp.rancher
+cert_manager_version: '1.5.1'

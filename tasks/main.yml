@@ -23,27 +23,104 @@
     - kubernetes-validate
     executable: pip3
 
-- name: Add jetstack chart repo
-  community.kubernetes.helm_repository:
-    repo_state: present
-    name: jetstack
-    repo_url: "https://charts.jetstack.io"
 
-- name: Deploy version {{cert_manager_version}} of cert-manager chart inside cert-manager namespace
-  community.kubernetes.helm:
-    update_repo_cache: yes
-    wait: yes
-    wait_timeout: "30m"
-    create_namespace: yes
-    release_state: present
-    kubeconfig: "{{k3s_kube_config_path }}"
+- name: Install nginx ingress controller 
+  block:
+  - name: Copy ingress-nginx.yaml file
+    copy:
+      src: "ingress-nginx.yaml"
+      dest: "/root/ingress-nginx-k3s.yaml"
+      owner: root
+      group: root
+      mode: 0644
+
+  # Apply manifest
+  - name: Apply ingress-nginx manifest to the cluster.
+    community.kubernetes.k8s:
+      kubeconfig: "{{ k3s_kube_config_path }}"
+      state: present
+      src: /root/ingress-nginx-k3s.yaml
+      validate_certs: no
+      validate:
+        fail_on_error: no
+        strict: no
+
+  - name: Copy ingress-controller-lb.yaml file
+    copy:
+      src: "ingress-controller-lb.yaml"
+      dest: "/root/ingress-controller-lb-k3s.yaml"
+      owner: root
+      group: root
+      mode: 0644
+
+  # Apply manifest
+  - name: Apply ingress-controller-lb manifest to the cluster.
+    community.kubernetes.k8s:
+      kubeconfig: "{{ k3s_kube_config_path }}"
+      state: present
+      src: /root/ingress-controller-lb-k3s.yaml
+      validate_certs: no
+      validate:
+        fail_on_error: no
+        strict: no
+
+  when:
+  - rancher_options.letsEncrypt_ingress_class == "nginx"
+
+
+#- name: Add jetstack chart repo
+#  community.kubernetes.helm_repository:
+#    repo_state: present
+#    name: jetstack
+#    repo_url: "https://charts.jetstack.io"
+#
+#- name: Deploy version {{cert_manager_version}} of cert-manager chart inside cert-manager namespace
+#  community.kubernetes.helm:
+#    update_repo_cache: yes
+#    wait: yes
+#    wait_timeout: "30m"
+#    create_namespace: yes
+#    release_state: present
+#    kubeconfig: "{{k3s_kube_config_path }}"
+#    name: cert-manager
+#    chart_ref: jetstack/cert-manager
+#    release_namespace: cert-manager
+#    chart_version: "{{ cert_manager_version }}"
+#    release_values: 
+#      installCRDs: true
+#
+#
+
+
+- name: Create cert-manager namespace
+  community.kubernetes.k8s:
+    kubeconfig: "{{ k3s_kube_config_path }}"
+    validate_certs: no
     name: cert-manager
-    chart_ref: jetstack/cert-manager
-    release_namespace: cert-manager
-    chart_version: "{{ cert_manager_version }}"
-    release_values: 
-      installCRDs: true
+    api_version: v1
+    kind: Namespace
+    state: present
 
+
+- name: Copy cert-manager-k3s.yaml file
+  copy:
+    src: "cert-manager.yaml"
+    dest: "/root/cert-manager-k3s.yaml"
+    owner: root
+    group: root
+    mode: 0644
+
+
+# Apply manifest
+- name: Apply cert-manager manifest to the cluster.
+  community.kubernetes.k8s:
+    kubeconfig: "{{ k3s_kube_config_path }}"
+    validate_certs: no
+    state: present
+    src: /root/cert-manager-k3s.yaml
+    validate:
+      fail_on_error: no
+      strict: no
 
 - name: check if cert-manager deployments are available
   community.kubernetes.k8s_info:
@@ -63,6 +140,66 @@
   retries: 30
 
 
+#- name: Copy coreDNs-configmap.yaml template
+#  template:
+#    src: "coreDNs-configmap.yaml.j2"
+#    dest: "/root/coreDNs-configmap.yaml"
+#    owner: root
+#    group: root
+#    mode: 0644
+## Apply manifest
+#- name: Apply coreDNs-configmap manifest to the cluster.
+#  community.kubernetes.k8s:
+#    kubeconfig: "{{ k3s_kube_config_path }}"
+#    state: present
+#    src: /root/coreDNs-configmap.yaml
+#    force: yes
+#    validate_certs: no
+#    namespace: kube-system
+#    validate:
+#      fail_on_error: no
+#      strict: no
+      
+- name: Copy cluster-issuer-prod.yaml template
+  template:
+    src: "cluster-issuer-prod.yaml.j2"
+    dest: "/root/cluster-issuer-prod-k3s.yaml"
+    owner: root
+    group: root
+    mode: 0644
+      
+- name: Copy cluster-issuer-staging.yaml template
+  template:
+    src: "cluster-issuer-staging.yaml.j2"
+    dest: "/root/cluster-issuer-staging-k3s.yaml"
+    owner: root
+    group: root
+    mode: 0644
+      
+# Apply manifest
+- name: Apply cluster-issuer-prod manifest to the cluster.
+  community.kubernetes.k8s:
+    kubeconfig: "{{ k3s_kube_config_path }}"
+    state: present
+    src: /root/cluster-issuer-prod-k3s.yaml
+    validate_certs: no
+    namespace: cert-manager
+    validate:
+      fail_on_error: no
+      strict: no
+# Apply manifest
+- name: Apply cluster-issuer-staging manifest to the cluster.
+  community.kubernetes.k8s:
+    kubeconfig: "{{ k3s_kube_config_path }}"
+    state: present
+    src: /root/cluster-issuer-staging-k3s.yaml
+    validate_certs: no
+    namespace: cert-manager
+    validate:
+      fail_on_error: no
+      strict: no
+
+
 - name: Add rancher-stable chart repo
   community.kubernetes.helm_repository:
     name: rancher-stable
@@ -71,6 +208,9 @@
 
 - name: Block to install rancher with Rancher self certificates
   block:
+  - name: debug rancher options
+    debug:
+      var: rancher_options
   - name: Deploy version {{ rancher_version }} of rancher chart inside cattle-system namespace with values DNS {{ rancher_dns_name }}, tls source {{ rancher_options.ingress_tls_source}}
     community.kubernetes.helm:
       update_repo_cache: yes
@@ -96,67 +236,6 @@
 
 - name: Block to install rancher with LetsEncrypt support
   block:
-  - name: Copy coreDNs-configmap.yaml template
-    template:
-      src: "coreDNs-configmap.yaml.j2"
-      dest: "/root/coreDNs-configmap.yaml"
-      owner: root
-      group: root
-      mode: 0644
-
-  # Apply manifest
-  - name: Apply coreDNs-configmap manifest to the cluster.
-    community.kubernetes.k8s:
-      kubeconfig: "{{ k3s_kube_config_path }}"
-      state: present
-      src: /root/coreDNs-configmap.yaml
-      force: yes
-      validate_certs: no
-      namespace: kube-system
-      validate:
-        fail_on_error: no
-        strict: no
-        
-  - name: Copy cluster-issuer-prod.yaml template
-    template:
-      src: "cluster-issuer-prod.yaml.j2"
-      dest: "/root/cluster-issuer-prod.yaml"
-      owner: root
-      group: root
-      mode: 0644
-        
-  - name: Copy cluster-issuer-staging.yaml template
-    template:
-      src: "cluster-issuer-staging.yaml.j2"
-      dest: "/root/cluster-issuer-staging.yaml"
-      owner: root
-      group: root
-      mode: 0644
-        
-  # Apply manifest
-  - name: Apply cluster-issuer-prod manifest to the cluster.
-    community.kubernetes.k8s:
-      kubeconfig: "{{ k3s_kube_config_path }}"
-      state: present
-      src: /root/cluster-issuer-prod.yaml
-      validate_certs: no
-      namespace: cert-manager
-      validate:
-        fail_on_error: no
-        strict: no
-
-  # Apply manifest
-  - name: Apply cluster-issuer-staging manifest to the cluster.
-    community.kubernetes.k8s:
-      kubeconfig: "{{ k3s_kube_config_path }}"
-      state: present
-      src: /root/cluster-issuer-staging.yaml
-      validate_certs: no
-      namespace: cert-manager
-      validate:
-        fail_on_error: no
-        strict: no
-
   - name: debug rancher options
     debug:
       var: rancher_options
@@ -186,7 +265,7 @@
   - name: Copy rancher-ingress.yaml template
     template:
       src: "rancher-ingress.yaml.j2"
-      dest: "/root/rancher-ingress.yaml"
+      dest: "/root/rancher-ingress-k3s.yaml"
       owner: root
       group: root
       mode: 0644
@@ -197,7 +276,7 @@
       kubeconfig: "{{ k3s_kube_config_path }}"
       force: yes
       state: present
-      src: /root/rancher-ingress.yaml
+      src: /root/rancher-ingress-k3s.yaml
       validate_certs: no
       namespace: cattle-system
       validate:
