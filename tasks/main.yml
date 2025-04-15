@@ -36,7 +36,7 @@
 
   # Apply manifest
   - name: Apply ingress-nginx manifest to the cluster.
-    community.kubernetes.k8s:
+    kubernetes.core.k8s:
       kubeconfig: "{{ k3s_kube_config_path }}"
       state: present
       src: /root/ingress-nginx-k3s.yaml
@@ -55,7 +55,7 @@
 
   # Apply manifest
   - name: Apply ingress-controller-lb manifest to the cluster.
-    community.kubernetes.k8s:
+    kubernetes.core.k8s:
       kubeconfig: "{{ k3s_kube_config_path }}"
       state: present
       src: /root/ingress-controller-lb-k3s.yaml
@@ -93,7 +93,7 @@
 
 
 - name: Create cert-manager namespace
-  community.kubernetes.k8s:
+  kubernetes.core.k8s:
     kubeconfig: "{{ k3s_kube_config_path }}"
     validate_certs: no
     name: cert-manager
@@ -113,7 +113,7 @@
 
 # Apply manifest
 - name: Apply cert-manager manifest to the cluster.
-  community.kubernetes.k8s:
+  kubernetes.core.k8s:
     kubeconfig: "{{ k3s_kube_config_path }}"
     validate_certs: no
     state: present
@@ -123,7 +123,7 @@
       strict: no
 
 - name: check if cert-manager deployments are available
-  community.kubernetes.k8s_info:
+  kubernetes.core.k8s_info:
     kubeconfig: "{{ k3s_kube_config_path }}"
     namespace: cert-manager
     validate_certs: no
@@ -178,7 +178,7 @@
       
 # Apply manifest
 - name: Apply cluster-issuer-prod manifest to the cluster.
-  community.kubernetes.k8s:
+  kubernetes.core.k8s:
     kubeconfig: "{{ k3s_kube_config_path }}"
     state: present
     src: /root/cluster-issuer-prod-k3s.yaml
@@ -189,7 +189,7 @@
       strict: no
 # Apply manifest
 - name: Apply cluster-issuer-staging manifest to the cluster.
-  community.kubernetes.k8s:
+  kubernetes.core.k8s:
     kubeconfig: "{{ k3s_kube_config_path }}"
     state: present
     src: /root/cluster-issuer-staging-k3s.yaml
@@ -201,7 +201,7 @@
 
 
 - name: Add rancher-stable chart repo
-  community.kubernetes.helm_repository:
+  kubernetes.core.helm_repository:
     name: rancher-stable
     repo_url: "https://releases.rancher.com/server-charts/stable"
 
@@ -212,7 +212,7 @@
     debug:
       var: rancher_options
   - name: Deploy version {{ rancher_version }} of rancher chart inside cattle-system namespace with values DNS {{ rancher_dns_name }}, tls source {{ rancher_options.ingress_tls_source}}
-    community.kubernetes.helm:
+    kubernetes.core.helm:
       update_repo_cache: yes
       wait: yes
       wait_timeout: "30m"
@@ -241,7 +241,7 @@
       var: rancher_options
         
   - name: Deploy version {{ rancher_version }} of rancher chart inside cattle-system namespace with values DNS {{ rancher_dns_name }}, tls source {{ rancher_options.ingress_tls_source}}
-    community.kubernetes.helm:
+    kubernetes.core.helm:
       update_repo_cache: yes
       wait: yes
       wait_timeout: "30m"
@@ -272,7 +272,7 @@
 
   # Apply manifest
   - name: Apply rancher-ingress manifest to the cluster.
-    community.kubernetes.k8s:
+    kubernetes.core.k8s:
       kubeconfig: "{{ k3s_kube_config_path }}"
       force: yes
       state: present
